@@ -350,7 +350,7 @@ func checkAttrRestrictedAccess(attr irma.AttributeRequest, info *irma.RequestorI
 
 	// Check whether the requestor is in the list of authorised requestors
 	for _, req := range attrType.AuthorisedRequestors {
-		if req == info.ID.Name() {
+		if req == info.ID {
 			return nil
 		}
 	}
