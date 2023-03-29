@@ -336,6 +336,42 @@ func checkKey(conf *irma.Configuration, issuer irma.IssuerIdentifier, counter ui
 	return nil
 }
 
+// checkAttrRestrictedAccess checks whether the requestor is allowed to request the given attribute and returns an error if it is not authorised.
+func checkAttrRestrictedAccess(attr irma.AttributeRequest, info *irma.RequestorInfo, configuration *irma.Configuration) error {
+	attrType := configuration.AttributeTypes[attr.Type]
+	if attrType == nil {
+		return errors.Errorf("unknown attribute type %s", attr.Type)
+	}
+
+	// If no requestors are authorised, all requestors are allowed
+	if len(attrType.AuthorisedRequestors) == 0 {
+		return nil
+	}
+
+	// Check whether the requestor is in the list of authorised requestors
+	for _, req := range attrType.AuthorisedRequestors {
+		if req == info.ID.Name() {
+			return nil
+		}
+	}
+
+	return errors.Errorf("attribute type %s is not authorised for requestor %s", attr.Type, info.ID.Name())
+}
+
+// checkRestrictedAccess checks whether the requestor is allowed to request the given attributes and returns an error if one of the attributes is not authorised.
+func checkRestrictedAccess(cdc irma.AttributeConDisCon, requestor *irma.RequestorInfo, configuration *irma.Configuration) error {
+	for _, discon := range cdc {
+		for _, con := range discon {
+			for _, attr := range con {
+				if err := checkAttrRestrictedAccess(attr, requestor, configuration); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // processSessionInfo continues the session after all session state has been received:
 // it checks if the session can be performed and asks the user for consent.
 func (session *session) processSessionInfo() {
@@ -387,6 +423,15 @@ func (session *session) processSessionInfo() {
 			if len(preexistingCredentials) != 0 && preexistingCredentials[0].IsValid() && preexistingCredentials[0].CredentialType().IsSingleton {
 				ir.RemovalCredentialInfoList = append(ir.RemovalCredentialInfoList, preexistingCredentials[0].Info())
 			}
+		}
+	}
+
+	if session.Action == irma.ActionDisclosing || session.Action == irma.ActionSigning {
+		req := session.request.(*irma.DisclosureRequest)
+		requestorInfo := requestorInfo(session.Hostname, session.client.Configuration)
+		if err := checkRestrictedAccess(req.Disclose, requestorInfo, session.client.Configuration); err != nil {
+			session.fail(&irma.SessionError{ErrorType: irma.ErrorInvalidRequest, Err: err})
+			return
 		}
 	}
 

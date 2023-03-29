@@ -109,6 +109,8 @@ type AttributeType struct {
 
 	RevocationAttribute bool `xml:"revocation,attr" json:",omitempty"`
 
+	AuthorisedRequestors []string `xml:"AuthorisedRequestors>Requestor" json:",omitempty"`
+
 	// Taken from containing CredentialType
 	CredentialTypeID string `xml:"-"`
 	IssuerID         string `xml:"-"`
