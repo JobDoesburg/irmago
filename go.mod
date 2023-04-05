@@ -1,4 +1,4 @@
-module github.com/privacybydesign/irmago
+module github.com/JobDoesburg/irmago
 
 go 1.18
 
